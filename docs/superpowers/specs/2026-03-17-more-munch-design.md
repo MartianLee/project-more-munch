@@ -120,17 +120,19 @@ model MenuItem {
 }
 
 model Visit {
-  id           Int        @id @default(autoincrement())
-  userId       Int
-  user         User       @relation(fields: [userId], references: [id])
-  restaurantId Int
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
-  rating       Rating?    // 5단계 평가
-  menu         String?    // 먹은 메뉴 (선택)
-  comment      String?    // 한줄평 (선택)
-  visitedAt    DateTime   @default(now())
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id               Int             @id @default(autoincrement())
+  userId           Int
+  user             User            @relation(fields: [userId], references: [id])
+  restaurantId     Int
+  restaurant       Restaurant      @relation(fields: [restaurantId], references: [id])
+  recommendationId Int?            // 추천에서 선택한 경우 연결
+  recommendation   Recommendation? @relation(fields: [recommendationId], references: [id])
+  rating           Rating?         // 5단계 평가
+  menu             String?         // 먹은 메뉴 (선택)
+  comment          String?         // 한줄평 (선택)
+  visitedAt        DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 }
 
 model Recommendation {
@@ -143,6 +145,7 @@ model Recommendation {
   score         Float      // 추천 점수 (알고리즘 디버깅용)
   chosen        Boolean    @default(false) // 유저가 실제 방문했는지
   recommendedAt DateTime   @default(now())
+  visits        Visit[]
 
   @@index([userId, recommendedAt])
 }
@@ -156,17 +159,30 @@ enum Rating {
 }
 ```
 
+### 거리 계산
+
+- **Haversine 공식**으로 직선 거리 계산 후, **도보 속도 80m/분** 기준으로 도보 시간 산출
+- `walkMinutes` 필터링: `직선거리(m) / 80 <= walkMinutes`
+- 응답의 `distance` 필드: `"도보 N분"` 형태 (반올림)
+- MVP에서는 직선거리 기반. 향후 외부 도보 경로 API로 정확도 개선 가능
+
 ## Recommendation Algorithm
 
 ### MVP (규칙 기반)
 
-각 식당에 추천 점수를 계산하여 상위 3곳 추천:
+각 식당에 추천 점수를 계산하여 상위 N곳 추천:
 
 ```
+사전 필터:
+  - isActive = true
+  - walkMinutes 이내
+  - combinedRating >= minRating (combinedRating이 null이면 제외)
+  - 오늘 요일이 businessHours에 포함 (영업시간 있으면 점심시간 11:00-14:00 영업 중인지 확인)
+  - NEVER 평가 받은 식당 → 영구 배제
+  - 최근 excludeDays일 이내 방문한 곳 → 배제
+
 추천 점수 = combinedRating
-          - (최근 방문 N일 이내 → 0점으로 배제)
-          - (NEVER 평가 → 영구 배제)
-          + 카테고리 다양성 보너스
+          + 카테고리 다양성 보너스 (최근 3일 카테고리와 다르면 +0.5)
 ```
 
 ### 향후 확장 (가중치 기반)
@@ -174,7 +190,7 @@ enum Rating {
 ```
 추천 점수 = 기본 점수 (combinedRating, 거리)
           × 방문 감쇠 (최근일수록 낮게, 시간 지나면 회복)
-          × 선택률 (추천 대비 실제 방문 비율)
+          × 선택률 (chosen 횟수 / 추천 횟수, 0이면 감쇠)
           × 평가 가중치 (AMAZING → 부스트, BAD → 감쇠)
           + 카테고리 다양성 보너스
           + 미방문 보너스
@@ -182,11 +198,43 @@ enum Rating {
 
 점수 계산 레이어를 분리하여, 로직 교체만으로 MVP → 가중치 전환 가능.
 
+### 추천 이력 → 선택률 반영 (MVP)
+
+- N회 이상 추천했는데 한번도 방문하지 않은 식당 → 배제 (기본 N=3)
+- 향후 연속적인 가중치로 전환
+
 ### 콜드스타트 전략
 
 - 초반: 카테고리 골고루 + combinedRating 순으로 추천
 - 피드백 쌓이면서 자연스럽게 선호도 학습
 - 명시적 선호도 질문 없음 — 데이터로 알아감
+
+### 추천 결과 없음
+
+필터 조건에 맞는 식당이 없으면:
+
+```json
+{
+  "pick": null,
+  "alternatives": [],
+  "message": "조건에 맞는 식당이 없습니다. 거리나 평점 기준을 조정해보세요.",
+  "recommendedAt": "2026-03-17T11:00:00Z"
+}
+```
+
+### reason 필드 생성
+
+템플릿 기반으로 서버가 생성. 예시:
+
+| 조건 | reason |
+|------|--------|
+| combinedRating >= 4.5 | "평점이 매우 높은 곳" |
+| 미방문 | "아직 안 가본 곳" |
+| AMAZING 평가 이력 | "지난번에 최고라고 한 곳" |
+| 최근 방문 없음 (14일+) | "오랜만에 가볼만한 곳" |
+| 블로그 리뷰 많음 | "리뷰 N개로 검증된 곳" |
+
+조건을 조합하여 1-2문장으로 생성.
 
 ## Data Collection
 
@@ -194,6 +242,12 @@ enum Rating {
 
 - **매일 04:00** — 기존 식당 데이터 갱신 (평점, 리뷰 수, 영업시간, 메뉴 변동)
 - **매주 일요일 04:00** — 전체 재스캔 (신규 오픈 탐색, 폐업 감지, `isActive` 업데이트)
+
+### 수집 범위
+
+유저의 직장 좌표 기준으로 `walkMinutes × 80m` 반경 + 20% 여유분. 예: 도보 10분 설정 → 반경 960m.
+
+1인용 MVP에서는 단일 유저 설정 기준으로 수집. 다중 유저 확장 시 모든 유저 좌표의 합집합 영역으로 확장.
 
 ### 수집 파이프라인
 
@@ -208,7 +262,16 @@ enum Rating {
 combinedRating = (kakaoRating × 0.5) + (naverRating × 0.5)
 ```
 
-양쪽 모두 있으면 평균, 한쪽만 있으면 해당 값 사용. 네이버 체험단 의심 시 네이버 비중 하향 조정.
+- 양쪽 모두 있으면 평균
+- 한쪽만 있으면 해당 값 사용
+- 양쪽 모두 없으면 `combinedRating = null` → 추천에서 제외
+- 네이버 체험단 의심 시: 블로그 리뷰 중 "체험단", "제공받아", "협찬" 키워드 포함 비율이 30% 이상이면 네이버 비중을 0.5 → 0.3으로 하향
+
+### 수집 실패 처리
+
+- API 호출 실패 시 최대 3회 재시도 (exponential backoff)
+- 전체 실패 시 기존 캐시 데이터 유지 (lastSyncedAt 갱신하지 않음)
+- 쿼터 소진 시 다음 cron까지 대기
 
 ## API Design
 
@@ -217,6 +280,13 @@ combinedRating = (kakaoRating × 0.5) + (naverRating × 0.5)
 모든 요청에 `X-API-Key` 헤더 필요.
 
 부트스트랩: 시드 스크립트에서 초기 유저 + API Key 생성. `.env`에 `SEED_API_KEY` 설정.
+
+### 식당 매칭 규칙
+
+API에서 식당명으로 매칭 시:
+- **유사도 검색** — 정확히 일치하지 않아도 가장 가까운 이름 매칭 (예: "만선" → "만선짬뽕")
+- 동일 이름의 식당이 여러 개일 경우 **가장 가까운 곳** (유저 직장 기준) 선택
+- 매칭 실패 시 400 에러
 
 ### Endpoints
 
@@ -234,6 +304,8 @@ GET /recommendations          오늘의 추천
 ```json
 {
   "pick": {
+    "id": 101,
+    "restaurantId": 42,
     "restaurant": {
       "name": "만선짬뽕",
       "category": "중식",
@@ -251,6 +323,8 @@ GET /recommendations          오늘의 추천
   },
   "alternatives": [
     {
+      "id": 102,
+      "restaurantId": 55,
       "restaurant": {
         "name": "미소라멘",
         "category": "일식",
@@ -265,6 +339,8 @@ GET /recommendations          오늘의 추천
       "score": 8.2
     },
     {
+      "id": 103,
+      "restaurantId": 18,
       "restaurant": {
         "name": "김밥천국 역삼점",
         "category": "한식",
@@ -285,14 +361,16 @@ GET /recommendations          오늘의 추천
 
 메뉴 개수: pick 최대 3개, alternatives 최대 1개 (인지 부하 감소).
 
+추천 응답의 `id`는 Recommendation 레코드 ID. 방문 기록 시 `recommendationId`로 연결.
+
 #### Visits (방문 기록)
 
 ```
 POST   /visits                방문 기록 생성 (식당명 기반)
 GET    /visits                방문 목록
-         ?period=week|month   기간 필터
+         ?period=week|month   기간 필터 (week=최근 7일, month=최근 30일)
          ?category=중식       카테고리 필터
-         ?restaurant=만선      식당명 검색
+         ?restaurant=만선      식당명 검색 (부분 일치)
          ?rating=GOOD         평가 필터
          ?limit=20
          ?cursor=42           커서 페이지네이션 (마지막 visit id)
@@ -305,15 +383,18 @@ DELETE /visits/:id            방문 삭제
 ```json
 {
   "restaurant": "만선짬뽕",
+  "recommendationId": 101,
   "rating": "GOOD",
   "menu": "짬뽕",
-  "comment": "국물이 시원해"
+  "comment": "국물이 시원해",
+  "visitedAt": "2026-03-17"
 }
 ```
 
-서버가 식당명으로 Restaurant DB 매칭. 없으면 400 에러 (Collector가 수집한 식당만 유효).
-
-추천에서 선택한 경우 해당 Recommendation의 `chosen`을 자동으로 `true`로 업데이트.
+- `restaurant`: 필수. 식당명 매칭.
+- `recommendationId`: 선택. 추천에서 선택한 경우 전달 → 해당 Recommendation의 `chosen`을 `true`로 업데이트.
+- `rating`, `menu`, `comment`: 모두 선택.
+- `visitedAt`: 선택. 기본값 오늘. 어제 점심 등 소급 기록 가능.
 
 **POST /visits 응답 (201):**
 ```json
@@ -329,10 +410,29 @@ DELETE /visits/:id            방문 삭제
 }
 ```
 
-필수: `restaurant`
-선택: rating, menu, comment
+**GET /visits/:id 응답:**
+```json
+{
+  "id": 1,
+  "restaurant": "만선짬뽕",
+  "category": "중식",
+  "rating": "GOOD",
+  "menu": "짬뽕",
+  "comment": "국물이 시원해",
+  "visitedAt": "2026-03-17"
+}
+```
 
-**PATCH /visits/:id** — 보낸 필드만 업데이트.
+**PATCH /visits/:id 요청:**
+```json
+{
+  "rating": "AMAZING",
+  "menu": "짬뽕",
+  "comment": "역대급이었어"
+}
+```
+
+보낸 필드만 업데이트, 나머지 유지.
 
 **GET /visits 응답:**
 ```json
@@ -379,12 +479,32 @@ GET /restaurants              수집된 식당 목록
       ?category=한식
       ?name=만선
       ?limit=20
+      ?cursor=42
 GET /restaurants/:id          식당 상세
+```
+
+**GET /restaurants 응답:**
+```json
+{
+  "data": [
+    {
+      "id": 42,
+      "name": "만선짬뽕",
+      "category": "중식",
+      "address": "강남구 역삼동 123-4",
+      "distance": "도보 7분",
+      "combinedRating": 4.3,
+      "topMenu": { "name": "짬뽕", "price": 8000 }
+    }
+  ],
+  "nextCursor": 42
+}
 ```
 
 **GET /restaurants/:id 응답:**
 ```json
 {
+  "id": 42,
   "name": "만선짬뽕",
   "category": "중식",
   "address": "강남구 역삼동 123-4",
@@ -440,6 +560,7 @@ GET /stats/summary            종합 통계
 | 식당 매칭 실패 | 400 | "Restaurant not found: 만선짬뽕2" |
 | 설정 미완료 (위치 없음) | 400 | "Location not set. Update settings first" |
 | 유효성 검증 실패 | 400 | "walkMinutes must be between 1 and 30" |
+| 추천 결과 없음 | 200 | pick: null, message 포함 |
 
 ## OpenClaw Workspace Skill
 
@@ -458,6 +579,10 @@ tools:
   - name: update_visit
     description: "방문 기록에 피드백 추가/수정"
     method: PATCH /visits/:id
+
+  - name: delete_visit
+    description: "방문 기록 삭제"
+    method: DELETE /visits/:id
 
   - name: get_visits
     description: "방문 기록 목록. 기간/카테고리/식당명 필터"
@@ -499,12 +624,14 @@ tools:
 3. 유저가 거부하면 alternatives 제시
    - "그러면 미소라멘은? 돈코츠라멘이 맛있대"
 4. 유저가 "오늘 면 땡겨" 등 힌트를 주면 category 필터로 재추천
+5. 추천 결과가 없으면 설정 조정을 제안
 
 ## 피드백 수집 (매일 cron 또는 유저 요청)
 1. "점심 어디 갔어? 어땠어?" 로 자연스럽게 묻기
 2. 식당명 + 평가(최고/좋았다/보통/별로/다시는안가)만 받으면 완료
-3. 응답의 missingOptional 확인, 메뉴/한줄평은 가볍게 물어보되 강요하지 않음
-4. "패스", "바빠" 하면 즉시 멈춤
+3. 추천한 곳에 갔으면 recommendationId를 함께 전송
+4. 응답의 missingOptional 확인, 메뉴/한줄평은 가볍게 물어보되 강요하지 않음
+5. "패스", "바빠" 하면 즉시 멈춤
 
 ## 질문 수신 시
 - "이번 달 뭐 먹었지?" → get_visits (period=month)
@@ -561,13 +688,13 @@ k3s 클러스터 (미니PC)
 2. `pnpm seed` — 시드 스크립트 (초기 유저 + API Key 생성)
 3. `.env` 설정 (`SEED_API_KEY`, 카카오/네이버 API 키)
 4. 유저가 Skill 온보딩 시 `PATCH /settings`으로 직장 위치 설정
-5. 첫 Collector 수집 후 추천 시작
+5. 위치 설정 후 첫 Collector 수집 트리거 → 추천 시작
 
 ## Testing Strategy
 
-- **Unit tests** — 추천 점수 계산, 식당 매칭, 통계 집계
+- **Unit tests** — 추천 점수 계산, 식당 매칭, 거리 계산, 통계 집계
 - **Integration tests** — API 엔드포인트 E2E (supertest)
-- **Collector tests** — 외부 API 응답 파싱, 데이터 병합 로직 (mock)
+- **Collector tests** — 외부 API 응답 파싱, 데이터 병합 로직, 체험단 필터링 (mock)
 - **DB tests** — Prisma 쿼리 검증 (test DB)
 
 ## Future Expansion
@@ -577,3 +704,4 @@ k3s 클러스터 (미니PC)
 - 날씨/맥락 연동 (비 오면 국물 가중치 상승)
 - 가중치 기반 추천 알고리즘 (D 모드)
 - 예약 연동 (네이버 예약 등)
+- 외부 도보 경로 API로 거리 정확도 개선
