@@ -4,6 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { SettingsModule } from './settings/settings.module';
 import { RestaurantModule } from './restaurant/restaurant.module';
+import { VisitModule } from './visit/visit.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { RestaurantModule } from './restaurant/restaurant.module';
     PrismaModule,
     SettingsModule,
     RestaurantModule,
+    VisitModule,
   ],
 })
 export class AppModule {}
