@@ -6,7 +6,7 @@
 
 **Architecture:** NestJS REST API server with Prisma ORM + PostgreSQL. Collector module fetches restaurant data from Kakao Places and Naver Search APIs on a cron schedule. Recommendation module scores and ranks restaurants based on ratings, visit history, and diversity. OpenClaw Workspace Skill orchestrates the user-facing interaction.
 
-**Tech Stack:** NestJS, TypeScript, Prisma, PostgreSQL, @nestjs/swagger, @nestjs/schedule, Jest, supertest
+**Tech Stack:** NestJS, TypeScript, Prisma, SQLite, @nestjs/swagger, @nestjs/schedule, Jest, supertest
 
 **Spec:** `docs/superpowers/specs/2026-03-17-more-munch-design.md`
 
@@ -83,7 +83,6 @@ deploy/
 └── k8s/
     ├── deployment.yaml
     ├── service.yaml
-    ├── postgres.yaml
     └── secrets.yaml
 skill/
 └── more-munch-skill.md                     # OpenClaw Workspace Skill definition
@@ -167,7 +166,7 @@ pnpm add -D @nestjs/cli @nestjs/testing typescript @types/node @types/express ts
 
 ```env
 # apps/server/.env.example
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/more_munch?schema=public
+DATABASE_URL=file:./data/more-munch.db
 SEED_API_KEY=your-api-key-here
 KAKAO_REST_API_KEY=your-kakao-key
 NAVER_CLIENT_ID=your-naver-client-id
@@ -244,7 +243,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -2525,7 +2524,6 @@ git commit -m "feat: add multi-stage Dockerfile for NestJS server"
 **Files:**
 - Create: `deploy/k8s/deployment.yaml`
 - Create: `deploy/k8s/service.yaml`
-- Create: `deploy/k8s/postgres.yaml`
 - Create: `deploy/k8s/secrets.yaml`
 
 - [ ] **Step 1: Write deployment.yaml**
@@ -2554,6 +2552,14 @@ spec:
           envFrom:
             - secretRef:
                 name: more-munch-secrets
+          volumeMounts:
+            - name: sqlite-data
+              mountPath: /app/data
+      volumes:
+        - name: sqlite-data
+          hostPath:
+            path: /data/more-munch
+            type: DirectoryOrCreate
 ```
 
 - [ ] **Step 2: Write service.yaml**
@@ -2572,65 +2578,7 @@ spec:
       targetPort: 19848
 ```
 
-- [ ] **Step 3: Write postgres.yaml**
-
-```yaml
-# deploy/k8s/postgres.yaml
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: more-munch-postgres
-spec:
-  serviceName: more-munch-postgres
-  replicas: 1
-  selector:
-    matchLabels:
-      app: more-munch-postgres
-  template:
-    metadata:
-      labels:
-        app: more-munch-postgres
-    spec:
-      containers:
-        - name: postgres
-          image: postgres:16-alpine
-          ports:
-            - containerPort: 5432
-          env:
-            - name: POSTGRES_DB
-              value: more_munch
-            - name: POSTGRES_USER
-              value: postgres
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: more-munch-secrets
-                  key: POSTGRES_PASSWORD
-          volumeMounts:
-            - name: postgres-data
-              mountPath: /var/lib/postgresql/data
-  volumeClaimTemplates:
-    - metadata:
-        name: postgres-data
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 5Gi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: more-munch-postgres
-spec:
-  selector:
-    app: more-munch-postgres
-  ports:
-    - port: 5432
-      targetPort: 5432
-```
-
-- [ ] **Step 4: Write secrets.yaml**
+- [ ] **Step 3: Write secrets.yaml**
 
 ```yaml
 # deploy/k8s/secrets.yaml
@@ -2641,19 +2589,18 @@ metadata:
 type: Opaque
 stringData:
   # Replace these values before applying
-  DATABASE_URL: "postgresql://postgres:changeme@more-munch-postgres:5432/more_munch?schema=public"
-  POSTGRES_PASSWORD: "changeme"
+  DATABASE_URL: "file:./data/more-munch.db"
   SEED_API_KEY: "changeme"
   KAKAO_REST_API_KEY: "changeme"
   NAVER_CLIENT_ID: "changeme"
   NAVER_CLIENT_SECRET: "changeme"
 ```
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add deploy/k8s/
-git commit -m "feat: add k8s manifests for server, postgres, secrets"
+git commit -m "feat: add k8s manifests for server and secrets (SQLite)"
 ```
 
 ---

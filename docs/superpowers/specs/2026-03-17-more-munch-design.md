@@ -26,7 +26,7 @@ More Munch Server (NestJS)
   │   └─ Merger (양쪽 데이터 병합, 통합 평점 산출)
   └─ Auth Guard (API Key)
          │
-PostgreSQL (Prisma ORM)
+SQLite (Prisma ORM, 파일 기반)
          │
 k3s (미니PC) — localhost:19848
 ```
@@ -45,7 +45,7 @@ k3s (미니PC) — localhost:19848
 |--------|------|
 | Backend | NestJS (TypeScript) |
 | ORM | Prisma |
-| Database | PostgreSQL |
+| Database | SQLite (파일 기반) |
 | Auth | API Key (X-API-Key 헤더) |
 | External APIs | Kakao Places API, Naver Search API |
 | Client | OpenClaw Workspace Skill |
@@ -665,26 +665,25 @@ k3s 클러스터 (미니PC)
 │       └─ Collector cron (내장, @nestjs/schedule)
 │           ├─ 매일 04:00 — 기존 식당 데이터 갱신
 │           └─ 매주 일 04:00 — 전체 재스캔
-├─ postgresql (StatefulSet)
-│   └─ PersistentVolume → /data/postgres
+│       └─ SQLite DB → /data/more-munch.db
 └─ (선택) cloudflare-tunnel
 ```
 
 - **Dockerfile** — NestJS 멀티스테이지 빌드
-- **k8s manifests** — Deployment, Service, PV/PVC, Secret
+- **k8s manifests** — Deployment, Service, PV (SQLite 파일용), Secret
 - **포트** — 19848
 - **Cloudflare Tunnel** — 선택. 같은 호스트면 localhost:19848
 
 ### 환경변수
 
-- `DATABASE_URL` — PostgreSQL 접속
+- `DATABASE_URL` — SQLite 파일 경로 (예: `file:./data/more-munch.db`)
 - `SEED_API_KEY` — 초기 유저 API Key
 - `KAKAO_REST_API_KEY` — 카카오 Places API
 - `NAVER_CLIENT_ID` / `NAVER_CLIENT_SECRET` — 네이버 검색 API
 
 ## Bootstrapping
 
-1. `pnpm prisma migrate deploy` — DB 마이그레이션
+1. `pnpm prisma migrate deploy` — SQLite 마이그레이션
 2. `pnpm seed` — 시드 스크립트 (초기 유저 + API Key 생성)
 3. `.env` 설정 (`SEED_API_KEY`, 카카오/네이버 API 키)
 4. 유저가 Skill 온보딩 시 `PATCH /settings`으로 직장 위치 설정
