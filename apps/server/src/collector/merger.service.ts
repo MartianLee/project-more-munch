@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { KakaoPlace } from './kakao.service';
 import { NaverPlace } from './naver.service';
@@ -42,7 +43,7 @@ export class MergerService {
           naverId: naverMatch ? this.normalize(naverMatch.title) : null,
           naverRating: null,
           combinedRating,
-          businessHours: kp.businessHours,
+          businessHours: kp.businessHours ?? Prisma.JsonNull,
           isActive: true,
           lastSyncedAt: new Date(),
         },
@@ -52,7 +53,7 @@ export class MergerService {
           category: kp.category,
           kakaoRating: kp.rating,
           combinedRating,
-          businessHours: kp.businessHours,
+          businessHours: kp.businessHours ?? Prisma.JsonNull,
           isActive: true,
           lastSyncedAt: new Date(),
         },
