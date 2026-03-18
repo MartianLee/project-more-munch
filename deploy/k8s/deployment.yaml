@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: more-munch-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: more-munch-server
+  template:
+    metadata:
+      labels:
+        app: more-munch-server
+    spec:
+      containers:
+        - name: server
+          image: more-munch-server:latest
+          ports:
+            - containerPort: 19848
+          envFrom:
+            - secretRef:
+                name: more-munch-secrets
+          volumeMounts:
+            - name: sqlite-data
+              mountPath: /app/data
+      volumes:
+        - name: sqlite-data
+          hostPath:
+            path: /data/more-munch
+            type: DirectoryOrCreate

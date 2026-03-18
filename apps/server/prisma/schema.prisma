@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id              Int              @id @default(autoincrement())
+  nickname        String
+  apiKey          String           @unique
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  settings        UserSettings?
+  visits          Visit[]
+  recommendations Recommendation[]
+}
+
+model UserSettings {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @unique
+  user        User     @relation(fields: [userId], references: [id])
+  latitude    Float
+  longitude   Float
+  walkMinutes Int      @default(10)
+  minRating   Float    @default(3.5)
+  excludeDays Int      @default(5)
+  updatedAt   DateTime @updatedAt
+}
+
+model Restaurant {
+  id              Int              @id @default(autoincrement())
+  name            String
+  address         String
+  latitude        Float
+  longitude       Float
+  category        String?
+  priceRange      String?
+  kakaoId         String?          @unique
+  kakaoRating     Float?
+  naverId         String?          @unique
+  naverRating     Float?
+  naverBlogCount  Int?
+  combinedRating  Float?
+  businessHours   Json?
+  holidays        Json?
+  isActive        Boolean          @default(true)
+  lastSyncedAt    DateTime
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  menus           MenuItem[]
+  visits          Visit[]
+  recommendations Recommendation[]
+
+  @@unique([name, address])
+}
+
+model MenuItem {
+  id           Int        @id @default(autoincrement())
+  restaurantId Int
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name         String
+  price        Int?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([restaurantId, name])
+}
+
+model Visit {
+  id               Int             @id @default(autoincrement())
+  userId           Int
+  user             User            @relation(fields: [userId], references: [id])
+  restaurantId     Int
+  restaurant       Restaurant      @relation(fields: [restaurantId], references: [id])
+  recommendationId Int?
+  recommendation   Recommendation? @relation(fields: [recommendationId], references: [id])
+  rating           Rating?
+  menu             String?
+  comment          String?
+  visitedAt        DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model Recommendation {
+  id            Int        @id @default(autoincrement())
+  userId        Int
+  user          User       @relation(fields: [userId], references: [id])
+  restaurantId  Int
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id])
+  rank          Int
+  score         Float
+  chosen        Boolean    @default(false)
+  recommendedAt DateTime   @default(now())
+  visits        Visit[]
+
+  @@index([userId, recommendedAt])
+}
+
+enum Rating {
+  AMAZING
+  GOOD
+  OKAY
+  BAD
+  NEVER
+}
