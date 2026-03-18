@@ -174,7 +174,7 @@ export class RecommendationService {
     const hours = businessHours[today];
     if (!hours) return false;
     const [open, close] = hours.split('-').map((t: string) => parseInt(t.replace(':', '')));
-    return open <= 1100 && close >= 1400 || open <= 1400 && close >= 1100;
+    return open <= 1100 && close >= 1400;
   }
 
   private async getIgnoredCounts(userId: number): Promise<Map<number, number>> {

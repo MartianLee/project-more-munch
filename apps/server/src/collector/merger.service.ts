@@ -85,7 +85,7 @@ export class MergerService {
           isActive: true,
           lastSyncedAt: new Date(),
         },
-      }).catch(() => {});
+      }).catch((e) => this.logger.warn(`Failed to upsert Naver-only restaurant: ${np.title}`, e.message));
       upsertCount++;
     }
 
