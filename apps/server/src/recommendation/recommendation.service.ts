@@ -116,7 +116,7 @@ export class RecommendationService {
         };
       })
       .filter((s) => s.score > 0)
-      .sort((a, b) => b.score - a.score)
+      .sort((a, b) => b.score - a.score || Math.random() - 0.5)
       .slice(0, count);
 
     if (scored.length === 0) {

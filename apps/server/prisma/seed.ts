@@ -1,7 +1,10 @@
 // apps/server/prisma/seed.ts
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
+import { PrismaLibSql } from '@prisma/adapter-libsql';
 
-const prisma = new PrismaClient();
+const adapter = new PrismaLibSql({ url: process.env.DATABASE_URL! });
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   const apiKey = process.env.SEED_API_KEY;
