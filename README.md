@@ -105,19 +105,46 @@ cat .env | grep SEED_API_KEY
 
 ### 3단계: OpenClaw에 스킬 등록
 
-1. OpenClaw 앱에서 **스킬 추가**로 이동합니다
-2. 이 프로젝트의 `skill/more-munch-skill.md` 파일 내용을 복사해서 붙여넣기합니다
-3. **서버 주소**를 입력합니다:
-   - 같은 컴퓨터에서 실행 중이면: `http://localhost:19848`
-   - 다른 기기에서 접속하려면: `http://<맥미니IP>:19848`
-     (맥미니 IP 확인: `ifconfig | grep "inet " | grep -v 127.0.0.1`)
-4. **인증 헤더**를 설정합니다:
-   - 헤더 이름: `X-API-Key`
-   - 헤더 값: `.env`의 `SEED_API_KEY` 값
+OpenClaw 스킬은 파일 기반입니다. 워크스페이스의 `skills/` 폴더에 파일을 만들면 자동으로 인식됩니다.
 
-### 4단계: 초기 설정
+```bash
+# OpenClaw 워크스페이스의 skills 폴더에 디렉토리 생성
+mkdir -p <openclaw-workspace>/skills/more-munch
 
-OpenClaw에서 대화를 시작합니다:
+# 이 프로젝트의 스킬 파일을 복사
+cp skill/more-munch-skill.md <openclaw-workspace>/skills/more-munch/SKILL.md
+```
+
+> `<openclaw-workspace>`는 OpenClaw이 실행되는 워크스페이스 경로입니다.
+> 전역으로 등록하려면 `~/.openclaw/skills/more-munch/SKILL.md`에 넣어도 됩니다.
+
+### 4단계: API 키 설정
+
+`~/.openclaw/openclaw.json` 파일을 열어서 More Munch 스킬의 환경 변수를 등록합니다:
+
+```json
+{
+  "skills": {
+    "entries": {
+      "more-munch": {
+        "enabled": true,
+        "env": {
+          "MORE_MUNCH_API_URL": "http://localhost:19848",
+          "MORE_MUNCH_API_KEY": "2단계에서 확인한 SEED_API_KEY 값"
+        }
+      }
+    }
+  }
+}
+```
+
+> - 같은 컴퓨터에서 실행 중이면: `http://localhost:19848`
+> - 다른 기기에서 접속하려면: `http://<맥미니IP>:19848`
+>   (맥미니 IP 확인: `ifconfig | grep "inet " | grep -v 127.0.0.1`)
+
+### 5단계: 초기 설정
+
+OpenClaw에서 새 세션을 시작하면 스킬이 자동 로드됩니다. 대화를 시작해 보세요:
 
 ```
 나: "위치를 시청역으로 설정해줘"
