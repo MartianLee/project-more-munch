@@ -19,9 +19,6 @@ COPY --from=builder /app/prisma.config.ts ./
 # EJS views (main.ts expects ../views relative to dist/)
 COPY --from=builder /app/views ./views
 
-# Public static assets (may be empty)
-COPY --from=builder /app/public/ ./public/
-
 # SQLite data directory
 RUN mkdir -p /app/data
 
