@@ -50,6 +50,14 @@ export class KakaoService {
     return places;
   }
 
+  async geocode(address: string): Promise<{ latitude: number; longitude: number } | null> {
+    const url = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(address)}&size=1`;
+    const data = await this.fetchWithRetry(url);
+    if (!data?.documents?.length) return null;
+    const doc = data.documents[0];
+    return { latitude: parseFloat(doc.y), longitude: parseFloat(doc.x) };
+  }
+
   private async fetchWithRetry(url: string, maxRetries = 3): Promise<any | null> {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {

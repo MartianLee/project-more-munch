@@ -1,10 +1,14 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { KakaoService } from '../collector/kakao.service';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 
 @Injectable()
 export class SettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly kakao: KakaoService,
+  ) {}
 
   async get(userId: number) {
     const settings = await this.prisma.userSettings.findUnique({
@@ -29,17 +33,28 @@ export class SettingsService {
   }
 
   async update(userId: number, dto: UpdateSettingsDto) {
+    // 주소가 전달되면 카카오 API로 좌표 변환
+    if (dto.address && !dto.latitude && !dto.longitude) {
+      const coords = await this.kakao.geocode(dto.address);
+      if (!coords) {
+        throw new BadRequestException(`주소를 찾을 수 없습니다: ${dto.address}`);
+      }
+      dto.latitude = coords.latitude;
+      dto.longitude = coords.longitude;
+    }
+
+    const { address, ...data } = dto;
     const settings = await this.prisma.userSettings.upsert({
       where: { userId },
       create: {
         userId,
-        latitude: dto.latitude ?? 0,
-        longitude: dto.longitude ?? 0,
-        walkMinutes: dto.walkMinutes ?? 10,
-        minRating: dto.minRating ?? 3.5,
-        excludeDays: dto.excludeDays ?? 5,
+        latitude: data.latitude ?? 0,
+        longitude: data.longitude ?? 0,
+        walkMinutes: data.walkMinutes ?? 10,
+        minRating: data.minRating ?? 3.5,
+        excludeDays: data.excludeDays ?? 5,
       },
-      update: dto,
+      update: data,
     });
     return {
       latitude: settings.latitude,

@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { KakaoPlace } from './kakao.service';
 import { NaverPlace } from './naver.service';
 import { NaverFilterService } from './naver-filter.service';
+import { MenuCollectorService } from './menu-collector.service';
 
 @Injectable()
 export class MergerService {
@@ -12,6 +13,7 @@ export class MergerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly naverFilter: NaverFilterService,
+    private readonly menuCollector: MenuCollectorService,
   ) {}
 
   async mergeAndSave(kakaoPlaces: KakaoPlace[], naverPlaces: NaverPlace[]) {
@@ -30,7 +32,7 @@ export class MergerService {
         naverMatch?.description,
       );
 
-      await this.prisma.restaurant.upsert({
+      const restaurant = await this.prisma.restaurant.upsert({
         where: { kakaoId: kp.id },
         create: {
           name: kp.name,
@@ -58,6 +60,8 @@ export class MergerService {
           lastSyncedAt: new Date(),
         },
       });
+
+      await this.syncMenus(restaurant.id, kp.id);
       upsertCount++;
     }
 
@@ -90,6 +94,23 @@ export class MergerService {
     }
 
     this.logger.log(`Merged ${upsertCount} restaurants`);
+  }
+
+  private async syncMenus(restaurantId: number, kakaoId: string) {
+    const menus = await this.menuCollector.fetchMenus(kakaoId);
+    if (menus.length === 0) return;
+
+    for (const menu of menus) {
+      await this.prisma.menuItem.upsert({
+        where: { restaurantId_name: { restaurantId, name: menu.name } },
+        create: { restaurantId, name: menu.name, price: menu.price },
+        update: { price: menu.price },
+      }).catch((e: Error) =>
+        this.logger.warn(`Failed to upsert menu "${menu.name}" for restaurant ${restaurantId}`, e.message),
+      );
+    }
+
+    this.logger.debug(`Synced ${menus.length} menus for restaurant ${restaurantId}`);
   }
 
   private normalize(name: string): string {
