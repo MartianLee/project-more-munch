@@ -1,0 +1,40 @@
+<%- include('../partials/header') %>
+
+<h1 class="text-2xl font-bold mb-4">식당 관리</h1>
+
+<!-- Search / Filters -->
+<div class="card bg-base-100 shadow mb-4">
+  <div class="card-body p-4">
+    <form hx-get="/admin/restaurants" hx-target="#restaurant-table-container" hx-push-url="false" class="flex flex-wrap gap-3 items-end">
+      <div class="form-control">
+        <label class="label label-text text-xs">식당명</label>
+        <input type="text" name="search" value="<%= search || '' %>" placeholder="검색..." class="input input-bordered input-sm w-48" />
+      </div>
+      <div class="form-control">
+        <label class="label label-text text-xs">카테고리</label>
+        <select name="category" class="select select-bordered select-sm">
+          <option value="">전체</option>
+          <% categories.forEach(cat => { %>
+            <option value="<%= cat %>" <%= category === cat ? 'selected' : '' %>><%= cat %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="form-control">
+        <label class="label label-text text-xs">상태</label>
+        <select name="active" class="select select-bordered select-sm">
+          <option value="" <%= active === '' ? 'selected' : '' %>>전체</option>
+          <option value="true" <%= active === 'true' ? 'selected' : '' %>>활성</option>
+          <option value="false" <%= active === 'false' ? 'selected' : '' %>>비활성</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm">검색</button>
+    </form>
+  </div>
+</div>
+
+<!-- Restaurant Table -->
+<div id="restaurant-table-container">
+  <%- include('../partials/restaurant-table') %>
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,59 @@
+<div class="card bg-base-100 shadow">
+  <div class="card-body p-4">
+    <div class="overflow-x-auto">
+      <table class="table table-zebra table-sm">
+        <thead>
+          <tr>
+            <th>날짜</th>
+            <th>식당명</th>
+            <th>메뉴</th>
+            <th>평가</th>
+            <th>코멘트</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (visits.length === 0) { %>
+            <tr><td colspan="5" class="text-center text-base-content/50">방문 기록이 없습니다</td></tr>
+          <% } else { %>
+            <% visits.forEach(v => { %>
+              <tr>
+                <td class="whitespace-nowrap"><%= new Date(v.visitedAt).toLocaleDateString('ko-KR') %></td>
+                <td class="font-medium"><%= v.restaurant.name %></td>
+                <td><%= v.menu || '-' %></td>
+                <td>
+                  <% if (v.rating) { %>
+                    <span class="badge badge-sm
+                      <%= v.rating === 'AMAZING' ? 'badge-success' :
+                          v.rating === 'GOOD' ? 'badge-info' :
+                          v.rating === 'OKAY' ? 'badge-warning' :
+                          v.rating === 'BAD' ? 'badge-error' :
+                          'badge-error' %>
+                    "><%= v.rating %></span>
+                  <% } else { %>
+                    <span class="text-base-content/50">-</span>
+                  <% } %>
+                </td>
+                <td class="max-w-[200px] truncate"><%= v.comment || '-' %></td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <% if (hasMore) { %>
+      <div class="flex justify-center mt-4">
+        <button
+          class="btn btn-sm btn-outline"
+          hx-get="/admin/visits?cursor=<%= nextCursor %>&period=<%= period || '' %>&rating=<%= rating || '' %>&search=<%= search || '' %>"
+          hx-target="#visit-table-container"
+          hx-swap="innerHTML"
+        >
+          더 보기
+          <span class="htmx-indicator loading loading-spinner loading-xs"></span>
+        </button>
+      </div>
+    <% } %>
+  </div>
+</div>

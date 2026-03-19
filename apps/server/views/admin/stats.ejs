@@ -1,0 +1,85 @@
+<%- include('../partials/header') %>
+
+<h1 class="text-2xl font-bold mb-4">통계</h1>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+  <!-- Category Visit Ratio -->
+  <div class="card bg-base-100 shadow">
+    <div class="card-body">
+      <h2 class="card-title text-lg">카테고리별 방문 비율</h2>
+      <% if (categoryStats.length === 0) { %>
+        <p class="text-base-content/50">방문 데이터가 없습니다</p>
+      <% } else { %>
+        <div class="space-y-3 mt-2">
+          <% categoryStats.forEach(cat => { %>
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span><%= cat.category || '미분류' %></span>
+                <span class="text-base-content/60"><%= cat.count %>회 (<%= cat.percent %>%)</span>
+              </div>
+              <progress class="progress progress-primary w-full" value="<%= cat.percent %>" max="100"></progress>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Rating Distribution -->
+  <div class="card bg-base-100 shadow">
+    <div class="card-body">
+      <h2 class="card-title text-lg">평가 분포</h2>
+      <% if (totalRatings === 0) { %>
+        <p class="text-base-content/50">평가 데이터가 없습니다</p>
+      <% } else { %>
+        <div class="space-y-3 mt-2">
+          <% const ratingColors = { AMAZING: 'progress-success', GOOD: 'progress-info', OKAY: 'progress-warning', BAD: 'progress-error', NEVER: 'progress-error' }; %>
+          <% ratingDistribution.forEach(r => { %>
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span><%= r.rating %></span>
+                <span class="text-base-content/60"><%= r.count %>회 (<%= r.percent %>%)</span>
+              </div>
+              <progress class="progress <%= ratingColors[r.rating] || 'progress-primary' %> w-full" value="<%= r.percent %>" max="100"></progress>
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Top 5 Restaurants -->
+  <div class="card bg-base-100 shadow lg:col-span-2">
+    <div class="card-body">
+      <h2 class="card-title text-lg">자주 방문한 식당 TOP 5</h2>
+      <div class="overflow-x-auto">
+        <table class="table table-zebra table-sm">
+          <thead>
+            <tr>
+              <th>순위</th>
+              <th>식당명</th>
+              <th>방문 횟수</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (topRestaurants.length === 0) { %>
+              <tr><td colspan="3" class="text-center text-base-content/50">방문 데이터가 없습니다</td></tr>
+            <% } else { %>
+              <% topRestaurants.forEach((r, i) => { %>
+                <tr>
+                  <td class="font-bold"><%= i + 1 %></td>
+                  <td><%= r.name %></td>
+                  <td><%= r.visitCount %>회</td>
+                </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,42 @@
+<%- include('../partials/header') %>
+
+<h1 class="text-2xl font-bold mb-4">방문 기록</h1>
+
+<!-- Filters -->
+<div class="card bg-base-100 shadow mb-4">
+  <div class="card-body p-4">
+    <form hx-get="/admin/visits" hx-target="#visit-table-container" hx-push-url="false" class="flex flex-wrap gap-3 items-end">
+      <div class="form-control">
+        <label class="label label-text text-xs">기간</label>
+        <select name="period" class="select select-bordered select-sm">
+          <option value="week" <%= period === 'week' ? 'selected' : '' %>>이번 주</option>
+          <option value="month" <%= period === 'month' ? 'selected' : '' %>>이번 달</option>
+          <option value="all" <%= period === 'all' ? 'selected' : '' %>>전체</option>
+        </select>
+      </div>
+      <div class="form-control">
+        <label class="label label-text text-xs">평가</label>
+        <select name="rating" class="select select-bordered select-sm">
+          <option value="">전체</option>
+          <option value="AMAZING" <%= rating === 'AMAZING' ? 'selected' : '' %>>AMAZING</option>
+          <option value="GOOD" <%= rating === 'GOOD' ? 'selected' : '' %>>GOOD</option>
+          <option value="OKAY" <%= rating === 'OKAY' ? 'selected' : '' %>>OKAY</option>
+          <option value="BAD" <%= rating === 'BAD' ? 'selected' : '' %>>BAD</option>
+          <option value="NEVER" <%= rating === 'NEVER' ? 'selected' : '' %>>NEVER</option>
+        </select>
+      </div>
+      <div class="form-control">
+        <label class="label label-text text-xs">식당명</label>
+        <input type="text" name="search" value="<%= search || '' %>" placeholder="검색..." class="input input-bordered input-sm w-48" />
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm">검색</button>
+    </form>
+  </div>
+</div>
+
+<!-- Visit Table -->
+<div id="visit-table-container">
+  <%- include('../partials/visit-table') %>
+</div>
+
+<%- include('../partials/footer') %>

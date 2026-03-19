@@ -1,0 +1,98 @@
+<%- include('../partials/header') %>
+
+<!-- Summary Stats -->
+<div class="stats stats-vertical sm:stats-horizontal shadow w-full mb-6">
+  <div class="stat">
+    <div class="stat-title">등록 식당</div>
+    <div class="stat-value text-primary"><%= restaurantCount %></div>
+    <div class="stat-desc">개</div>
+  </div>
+  <div class="stat">
+    <div class="stat-title">이번 주 방문</div>
+    <div class="stat-value text-secondary"><%= weekVisitCount %></div>
+    <div class="stat-desc">회</div>
+  </div>
+  <div class="stat">
+    <div class="stat-title">마지막 수집</div>
+    <div class="stat-value text-sm"><%= lastSyncTime ? lastSyncTime : '-' %></div>
+    <div class="stat-desc">최근 동기화</div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <!-- Recent Recommendations -->
+  <div class="card bg-base-100 shadow">
+    <div class="card-body">
+      <h2 class="card-title text-lg">최근 추천</h2>
+      <div class="overflow-x-auto">
+        <table class="table table-zebra table-sm">
+          <thead>
+            <tr>
+              <th>식당명</th>
+              <th>점수</th>
+              <th>날짜</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (recentRecommendations.length === 0) { %>
+              <tr><td colspan="3" class="text-center text-base-content/50">추천 기록이 없습니다</td></tr>
+            <% } else { %>
+              <% recentRecommendations.forEach(r => { %>
+                <tr>
+                  <td><%= r.restaurant.name %></td>
+                  <td><%= r.score.toFixed(1) %></td>
+                  <td><%= new Date(r.recommendedAt).toLocaleDateString('ko-KR') %></td>
+                </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Visits -->
+  <div class="card bg-base-100 shadow">
+    <div class="card-body">
+      <h2 class="card-title text-lg">최근 방문</h2>
+      <div class="overflow-x-auto">
+        <table class="table table-zebra table-sm">
+          <thead>
+            <tr>
+              <th>식당명</th>
+              <th>평가</th>
+              <th>날짜</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (recentVisits.length === 0) { %>
+              <tr><td colspan="3" class="text-center text-base-content/50">방문 기록이 없습니다</td></tr>
+            <% } else { %>
+              <% recentVisits.forEach(v => { %>
+                <tr>
+                  <td><%= v.restaurant.name %></td>
+                  <td>
+                    <% if (v.rating) { %>
+                      <span class="badge badge-sm
+                        <%= v.rating === 'AMAZING' ? 'badge-success' :
+                            v.rating === 'GOOD' ? 'badge-info' :
+                            v.rating === 'OKAY' ? 'badge-warning' :
+                            v.rating === 'BAD' ? 'badge-error' :
+                            'badge-error' %>
+                      "><%= v.rating %></span>
+                    <% } else { %>
+                      <span class="text-base-content/50">-</span>
+                    <% } %>
+                  </td>
+                  <td><%= new Date(v.visitedAt).toLocaleDateString('ko-KR') %></td>
+                </tr>
+              <% }) %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

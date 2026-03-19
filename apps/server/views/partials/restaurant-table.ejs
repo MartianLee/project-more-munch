@@ -1,0 +1,66 @@
+<div class="card bg-base-100 shadow">
+  <div class="card-body p-4">
+    <div class="overflow-x-auto">
+      <table class="table table-zebra table-sm">
+        <thead>
+          <tr>
+            <th>식당명</th>
+            <th>카테고리</th>
+            <th>주소</th>
+            <th>평점</th>
+            <th>메뉴 수</th>
+            <th>상태</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (restaurants.length === 0) { %>
+            <tr><td colspan="7" class="text-center text-base-content/50">식당이 없습니다</td></tr>
+          <% } else { %>
+            <% restaurants.forEach(r => { %>
+              <tr>
+                <td class="font-medium"><%= r.name %></td>
+                <td><%= r.category || '-' %></td>
+                <td class="max-w-[200px] truncate"><%= r.address %></td>
+                <td><%= r.combinedRating ? r.combinedRating.toFixed(1) : '-' %></td>
+                <td><%= r._count.menus %></td>
+                <td>
+                  <% if (r.isActive) { %>
+                    <span class="badge badge-success badge-sm">활성</span>
+                  <% } else { %>
+                    <span class="badge badge-ghost badge-sm">비활성</span>
+                  <% } %>
+                </td>
+                <td>
+                  <button
+                    class="btn btn-ghost btn-xs"
+                    hx-get="/admin/restaurants/<%= r.id %>"
+                    hx-target="#modal-container"
+                    hx-swap="innerHTML"
+                  >상세</button>
+                </td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <% if (hasMore || cursor) { %>
+      <div class="flex justify-center gap-2 mt-4">
+        <% if (hasMore) { %>
+          <button
+            class="btn btn-sm btn-outline"
+            hx-get="/admin/restaurants?cursor=<%= nextCursor %>&search=<%= search || '' %>&category=<%= category || '' %>&active=<%= active || '' %>"
+            hx-target="#restaurant-table-container"
+            hx-swap="innerHTML"
+          >
+            더 보기
+            <span class="htmx-indicator loading loading-spinner loading-xs"></span>
+          </button>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+</div>
