@@ -14,6 +14,16 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/prisma.config.ts ./
+
+# EJS views (main.ts expects ../views relative to dist/)
+COPY --from=builder /app/views ./views
+
+# Public static assets (may be empty)
+COPY --from=builder /app/public/ ./public/
+
+# SQLite data directory
+RUN mkdir -p /app/data
 
 EXPOSE 19848
-CMD ["node", "dist/main"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main"]

@@ -1,0 +1,18 @@
+services:
+  more-munch:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    container_name: more-munch
+    restart: unless-stopped
+    ports:
+      - "19848:19848"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=file:/app/data/more-munch.db
+    volumes:
+      - more-munch-data:/app/data
+
+volumes:
+  more-munch-data:
