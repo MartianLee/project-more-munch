@@ -12,6 +12,12 @@ export interface KakaoPlace {
   businessHours: Record<string, string> | null;
 }
 
+export interface KakaoSearchResult {
+  places: KakaoPlace[];
+  totalCount: number;
+  isSaturated: boolean;
+}
+
 @Injectable()
 export class KakaoService {
   private readonly logger = new Logger(KakaoService.name);
@@ -48,6 +54,45 @@ export class KakaoService {
     }
 
     return places;
+  }
+
+  async searchRestaurantsWithMeta(lat: number, lon: number, radiusM: number): Promise<KakaoSearchResult> {
+    const places: KakaoPlace[] = [];
+    let page = 1;
+    let isEnd = false;
+    let totalCount = 0;
+
+    while (!isEnd && page <= 3) {
+      const url = `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=FD6&x=${lon}&y=${lat}&radius=${radiusM}&page=${page}&size=15&sort=accuracy`;
+      const data = await this.fetchWithRetry(url);
+      if (!data) break;
+
+      totalCount = data.meta.pageable_count;
+      isEnd = data.meta.is_end;
+      for (const doc of data.documents) {
+        places.push({
+          id: doc.id,
+          name: doc.place_name,
+          address: doc.road_address_name || doc.address_name,
+          latitude: parseFloat(doc.y),
+          longitude: parseFloat(doc.x),
+          category: this.parseCategory(doc.category_name),
+          rating: null,
+          businessHours: null,
+        });
+      }
+      page++;
+      // 100ms rate limit between pages
+      if (!isEnd && page <= 3) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    }
+
+    return {
+      places,
+      totalCount,
+      isSaturated: totalCount >= 45,
+    };
   }
 
   async geocode(address: string): Promise<{ latitude: number; longitude: number } | null> {
