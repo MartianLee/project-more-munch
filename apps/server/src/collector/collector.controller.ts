@@ -10,9 +10,12 @@ export class CollectorController {
 
   @Post('run')
   @HttpCode(200)
-  @ApiOperation({ summary: '식당 데이터 수동 수집 트리거' })
+  @ApiOperation({ summary: '식당 데이터 수동 수집 트리거 (H3 그리드 기반)' })
   async run() {
-    await this.collector.collect();
-    return { message: 'Collection completed' };
+    const stats = await this.collector.collect();
+    return {
+      message: 'Collection completed',
+      ...stats,
+    };
   }
 }
