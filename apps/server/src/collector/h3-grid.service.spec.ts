@@ -36,4 +36,25 @@ describe('H3GridService', () => {
       }
     });
   });
+
+  describe('refineSaturatedCells', () => {
+    it('포화 셀을 해상도 9 자식 셀로 세분화한다', () => {
+      const cells = service.getSearchCells(37.5666, 126.9784, 800);
+      const saturatedIndex = cells[0].h3Index;
+
+      const refined = service.refineSaturatedCells([saturatedIndex]);
+      // 해상도 8 → 9: 약 7개 자식 셀
+      expect(refined.length).toBe(7);
+      for (const cell of refined) {
+        expect(cell).toHaveProperty('h3Index');
+        expect(cell).toHaveProperty('lat');
+        expect(cell).toHaveProperty('lng');
+      }
+    });
+
+    it('빈 배열을 넣으면 빈 배열을 반환한다', () => {
+      const refined = service.refineSaturatedCells([]);
+      expect(refined).toEqual([]);
+    });
+  });
 });
