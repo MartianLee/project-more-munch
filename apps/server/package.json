@@ -32,6 +32,7 @@
     "class-validator": "^0.15.1",
     "ejs": "^5.0.1",
     "express-session": "^1.19.0",
+    "h3-js": "^4.4.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
