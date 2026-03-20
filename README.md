@@ -74,9 +74,23 @@ pnpm start:dev     # http://localhost:19848
 | `POST /visits` | 방문 기록 등록 |
 | `GET /visits` | 방문 이력 조회 |
 | `GET /stats/summary` | 통계 요약 |
-| `POST /collector/run` | 식당 데이터 수동 수집 |
+| `POST /collector/run` | 식당 데이터 수동 수집 (H3 그리드 기반) |
 
 자세한 API 명세는 `/docs` (Swagger UI)에서 확인할 수 있습니다.
+
+### 식당 수집 방식
+
+[H3 Hexagonal Grid](https://h3geo.org/)를 사용하여 검색 영역을 육각형 셀로 분할합니다. 카카오 API의 좌표당 45개 제한을 우회하여 **수백 개의 식당**을 수집할 수 있습니다.
+
+- 해상도 8 셀로 주변 영역을 분할 → 각 셀 중심점마다 카카오 검색
+- 결과가 45개(포화)인 셀은 해상도 9로 세분화하여 재검색
+- `kakaoId` 기준 자동 중복 제거
+
+```bash
+# 수집 실행 예시
+curl -X POST http://localhost:19848/collector/run -H "X-API-Key: <your-key>"
+# → { "totalRestaurants": 395, "cellsSearched": 56, "saturatedCells": 7 }
+```
 
 ## OpenClaw 연동 가이드
 
